@@ -1,6 +1,6 @@
 Architecture overview :
 
-we will have 3 big layers:
+we will have 3 main layers:
 
 -1- I/O handling layer
 	doesnt know what HTTP is, just listens and knows if a socket has incoming/outgoing bytes. We use epoll() or poll()
@@ -32,3 +32,10 @@ System design:
 We will set up a small server running on 8080 port for testing.
 
 to talk with the server, it needs a socket (int fd) that acts as a portal.
+
+
+2-Config file:
+
+We will be taking the nginx config file as an example.
+Our config file will be a simplified version of the nginx config file.
+

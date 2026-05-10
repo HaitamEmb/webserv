@@ -3,6 +3,7 @@
 #include <iostream>
 #include <err.h>
 #include <unistd.h>
+#include <cstring>
 
 int main()
 {
@@ -24,7 +25,12 @@ int main()
 	int clientSocket = accept(server_socket, 0, 0);
 	//data receipt
 	char buff[1024] = {0};
-	recv(clientSocket, buff, sizeof(buff), MSG_DONTWAIT);
+	const char *hellohttp = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+	//now recv just recieve the message and put it in buff, later will become an HTTP request
+	//the HTTP request need to be parsed
+	//extracting Method, Path, and Headers.
+	recv(clientSocket, buff, sizeof(buff), 0);
+	send(clientSocket, hellohttp, strlen(hellohttp), 0);
 	std::cout << "Message from client: " << buff << std::endl;
 	//close
 	close(server_socket);
