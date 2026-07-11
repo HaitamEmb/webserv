@@ -25,7 +25,7 @@ int main()
 	int clientSocket = accept(server_socket, 0, 0);
 	//data receipt
 	char buff[1024] = {0};
-	const char *hellohttp = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+	const char *hellohttp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
 	//now recv just recieve the message and put it in buff, later will become an HTTP request
 	//the HTTP request need to be parsed
 	//extracting Method, Path, and Headers.

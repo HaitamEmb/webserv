@@ -59,4 +59,4 @@ Normally the browser(client) contacts the HTTP server and demand for the Univers
 
 Now with the CGI protocol, instead of just displaying a file, the client can ask for execution of a program or script, and the produced result of that execution is sent back to the client to display.
 
-The CGI layer will receive the request and then see if it's a request for script execution or just looking for a file.
+The CGI layer will receive the request and then see if it's a request for script execution or just looking for a file to display like index.html.
