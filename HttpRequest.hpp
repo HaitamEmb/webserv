@@ -13,6 +13,7 @@ class HttpRequest {
 		std::string _body;
 		std::string _version;
 		std::map<std::string, std::string> _headers;
+		bool _is_parsed;
 
 		void parseRequest(const std::string &line);
 		void parseHeader(const std::string &line);
@@ -23,12 +24,13 @@ class HttpRequest {
 		HttpRequest(HttpRequest const &other);
 		HttpRequest &operator=(HttpRequest const &other);
 		void parse(const std::string &buff);
+		bool parse_complete();
 
 		//getters
 		std::string getMethod();
 		std::string getVersion();
 		std::string getBody();
-		std::string getHeader();
+		std::string getHeader(const std::string &key);
 		std::string getPath();
 
 };
