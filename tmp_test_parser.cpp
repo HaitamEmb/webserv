@@ -1,4 +1,5 @@
 #include "HttpRequest.hpp"
+#include "HttpResponse.hpp"
 #include <iostream>
 #include <cassert>
 
@@ -55,12 +56,39 @@ void testPartialPostRequest() {
     std::cout << "PASSED!" << std::endl;
 }
 
+
+void testResponseGeneration() {
+    std::cout << "[Test 3] Testing HttpResponse serialization...\n ";
+
+    HttpResponse res;
+    res.setStatusCode(404);
+    res.setHeader("Content-Type", "text/html");
+    res.setBody("<h1>404 Not Found</h1>");
+
+    std::string raw_output = res.serializer();
+
+    //std::cout << raw_output << std::endl;
+
+    // Assert that status line, auto-calculated body length, and structure are perfect
+    assert(raw_output.find("HTTP/1.1 404 Not Found\r\n") == 0);
+    assert(raw_output.find("Content-Length: 22\r\n") != std::string::npos);
+    assert(raw_output.find("\r\n\r\n<h1>404 Not Found</h1>") != std::string::npos);
+
+    std::cout << "PASSED!" << std::endl;
+}
+
 int main() {
     std::cout << "=== STARTING HTTP PARSER UNIT TESTS ===" << std::endl;
     
     testGetRequest();
     testPartialPostRequest();
+    testResponseGeneration();
 
     std::cout << "=== ALL TESTS PASSED SUCCESSFULLY ===" << std::endl;
     return 0;
 }
+
+
+//to test
+//c++ -Wall -Wextra -Werror -std=c++98 test_parser.cpp HttpRequest.cpp HttpResponse.cpp -o software_test
+//./software_test

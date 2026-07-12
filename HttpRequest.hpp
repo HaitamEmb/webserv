@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <cstring>
+#include <cstdlib>
 #include <map>
 
 class HttpRequest {

@@ -67,7 +67,7 @@ void HttpRequest::parse(const std::string &buff)
 			_is_parsed = true;
 			return ;
 		}
-		std::size_t bodysize = std::atoi(content_len.c_str());
+		std::size_t bodysize = atoi(content_len.c_str());
 		if (_body.size() >= bodysize)
 			_is_parsed = true;
 		else
