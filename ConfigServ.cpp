@@ -4,6 +4,24 @@
 ConfigServ::ConfigServ() : _port(80), _host("0.0.0.0") {};
 ConfigServ::~ConfigServ() {};
 
+ConfigServ::ConfigServ(const ConfigServ &other)
+{
+	*this = other;
+}
+
+ConfigServ &ConfigServ::operator=(const ConfigServ &other)
+{
+	if (this != &other)
+	{
+		this->_host = other._host;
+		this->_locations = other._locations;
+		this->_port = other._port;
+		this->_servers = other._servers;
+	}
+	return *this;
+		
+}
+
 void ConfigServ::setPort(int port) {
 	_port = port;
 };

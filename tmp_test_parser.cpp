@@ -1,5 +1,6 @@
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
+#include "ConfigParser.hpp"
 #include <iostream>
 #include <cassert>
 
@@ -77,12 +78,59 @@ void testResponseGeneration() {
     std::cout << "PASSED!" << std::endl;
 }
 
+
+void testConfigParser() {
+    std::cout << "[Test 4] Testing ConfigParser loading default.conf... ";
+
+    ConfigParser parser("default.conf");
+    bool parsed_ok = parser.parse();
+    assert(parsed_ok == true);
+
+    std::vector<ConfigServ> servers = parser.getServers();
+    assert(servers.size() == 1);
+
+    // Vérification de la configuration serveur
+    ConfigServ server = servers[0];
+    assert(server.getPort() == 8080);
+    //std::string hh = server.getHost();
+    //int c = hh.compare("127.0.0.1");
+    //std::cout << "this is the host" << hh << std::endl;
+    assert(server.getHost() == "127.0.0.1");
+    assert(server.getServer().size() == 2);
+    assert(server.getServer()[0] == "localhost");
+
+    // Vérification des routes (locations)
+    std::vector<ConfigLoc> locations = server.getLocs();
+    assert(locations.size() == 2);
+
+    // Location /
+    ConfigLoc loc1 = locations[0];
+    assert(loc1.getPath() == "/");
+    assert(loc1.getRoot() == "./www");
+    assert(loc1.getAutoIndex() == true);
+    assert(loc1.AllowedMethod("GET") == true);
+    assert(loc1.AllowedMethod("DELETE") == false);
+    assert(loc1.getMaxBodySize() == 2000000);
+
+    // Location /uploads
+    ConfigLoc loc2 = locations[1];
+    assert(loc2.getPath() == "/uploads");
+    assert(loc2.AllowedMethod("GET") == false);
+    assert(loc2.AllowedMethod("DELETE") == true);
+    assert(loc2.getAutoIndex() == false);
+
+    std::cout << "PASSED!" << std::endl;
+}
+
+
+
 int main() {
-    std::cout << "=== STARTING HTTP PARSER UNIT TESTS ===" << std::endl;
+    std::cout << "=== STARTING WEBSERV UNIT TESTS ===" << std::endl;
     
     testGetRequest();
     testPartialPostRequest();
     testResponseGeneration();
+    testConfigParser();
 
     std::cout << "=== ALL TESTS PASSED SUCCESSFULLY ===" << std::endl;
     return 0;

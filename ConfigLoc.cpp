@@ -4,6 +4,25 @@
 ConfigLoc::ConfigLoc() : _path(""), _index("index.html"), _autoindex(false), _max_bodysize(1000000) {};
 ConfigLoc::~ConfigLoc() {};
 
+ConfigLoc::ConfigLoc(const ConfigLoc &other)
+{
+	*this = other;
+}
+
+ConfigLoc &ConfigLoc::operator=(const ConfigLoc &other)
+{
+	if (this != &other)
+	{
+		this->_autoindex = other._autoindex;
+		this->_index = other._index;
+		this->_max_bodysize = other._max_bodysize;
+		this->_methods = other._methods;
+		this->_path = other._path;
+		this->_root = other._root;
+	}
+	return *this;
+}
+
 void ConfigLoc::setPath(const std::string &path) {
 	_path = path;
 }
@@ -18,6 +37,10 @@ void ConfigLoc::setAutoIndex(bool state) {
 }
 void ConfigLoc::setMaxBodySize(size_t size) {
 	_max_bodysize = size;
+}
+
+void ConfigLoc::addMethod(const std::string &method){
+	_methods.push_back(method);
 }
 
 std::string ConfigLoc::getPath() const {return _path;};
