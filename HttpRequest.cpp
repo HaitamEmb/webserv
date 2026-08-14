@@ -19,6 +19,7 @@ HttpRequest &HttpRequest::operator=(HttpRequest const &other)
 		this->_method = other._method;
 		this->_path = other._path;
 		this->_version = other._version;
+		this->_query_string = other._query_string;
 	}
 	return *this;
 	
@@ -77,10 +78,11 @@ void HttpRequest::parse(const std::string &buff)
 
 bool HttpRequest::parse_complete() {return _is_parsed;};
 
-std::string HttpRequest::getBody() {return _body; };
-std::string HttpRequest::getPath() {return _path; };
-std::string HttpRequest::getVersion() {return _version; };
-std::string HttpRequest::getMethod() {return _method; };
+std::string HttpRequest::getBody() const {return _body; };
+std::string HttpRequest::getPath() const {return _path; };
+std::string HttpRequest::getVersion() const {return _version; };
+std::string HttpRequest::getMethod() const {return _method; };
+std::string HttpRequest::getQueryString() const {return _query_string;};
 std::string HttpRequest::getHeader(const std::string &key) {
 	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
 	if (it != _headers.end()){
@@ -92,7 +94,19 @@ std::string HttpRequest::getHeader(const std::string &key) {
 void HttpRequest::parseRequest(const std::string &line)
 {
 	std::stringstream ss(line);
-	ss >> _method >> _path >> _version;
+	std::string raw_target;
+
+	ss >> _method >> raw_target >> _version;
+	std::size_t query_pos = raw_target.find('?');
+	if (query_pos != std::string::npos)
+	{
+		_path = raw_target.substr(0, query_pos);
+		_query_string = raw_target.substr(query_pos + 1);
+	}else
+	{
+		_path = raw_target;
+		_query_string = "";
+	}
 }
 
 void HttpRequest::parseHeader(const std::string &line)

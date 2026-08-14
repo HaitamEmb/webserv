@@ -1,4 +1,5 @@
 #include "ServerManager.hpp"
+#include "RequestRouter.hpp"
 #include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -164,9 +165,10 @@ void ServerManager::_readClientData(int client_fd, size_t poll_index) {
 
 		//testing response generation	
 		std::cout << "[ServerManager] full request received from socket: " << client_fd << std::endl;
-		client->response.setStatusCode(200);
-		client->response.setHeader("Content-Type", "text/html");
-		client->response.setBody("<h1>Hello from Webserv poll loop!</h1>");
+		client->response = RequestRouter::routeRequest(client->request, client->assigned_config);
+		// client->response.setStatusCode(200);
+		// client->response.setHeader("Content-Type", "text/html");
+		// client->response.setBody("<h1>Hello from Webserv poll loop!</h1>");
 		client->setWriteBuff(client->response.serializer());
 		client->setState(WRITING_RESPONSE);
 		_poll_fds[poll_index].events = POLLOUT;
