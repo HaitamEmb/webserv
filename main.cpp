@@ -1,9 +1,11 @@
 #include "ConfigParser.hpp"
 #include "ServerManager.hpp"
 #include <iostream>
+#include <signal.h>
 
 int main(int ac, char  **av)
 {
+	signal(SIGPIPE, SIG_IGN);
 	std::string config_file = (ac > 1) ? av[1] : "default.conf";
 
 	ConfigParser parser(config_file);
