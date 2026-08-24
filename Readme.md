@@ -1,4 +1,47 @@
-Architecture overview :
+*This project has been created as part of the 42 curriculum by <login>.*
+
+# Description
+
+`webserv` is an HTTP/1.1 server written in C++98. It uses one non-blocking
+`poll()` loop for listening sockets and client sockets, parses a small Nginx-
+style configuration, serves static files, generates directory listings, and
+supports GET, POST uploads, and DELETE.
+
+# Instructions
+
+Build on a POSIX environment with a C++98 compiler:
+
+```sh
+make
+./webserv [configuration file]
+```
+
+When no configuration file is supplied, `default.conf` is used. The sample
+server listens on `127.0.0.1:8080` and serves files from `www/`.
+
+Useful checks:
+
+```sh
+curl -i http://127.0.0.1:8080/
+curl -i -X POST -H 'X-Filename: note.txt' --data 'hello' http://127.0.0.1:8080/uploads
+curl -i -X DELETE http://127.0.0.1:8080/uploads/note.txt
+```
+
+# Resources
+
+- RFC 9110, HTTP Semantics: https://www.rfc-editor.org/rfc/rfc9110
+- RFC 3875, CGI: https://www.rfc-editor.org/rfc/rfc3875
+- `poll(2)`, `socket(2)`, and `send(2)` system documentation
+- Nginx documentation for configuration and HTTP behavior comparisons
+
+Bonus examples are included in `default.conf`: `/session/` issues a
+`WEBSESSID` cookie and counts requests for that session, while `/cgi/` maps
+both `.py` files to Python and `.sh` files to `/bin/sh`.
+
+AI assistance was used to inspect the existing implementation, repair the
+build and C++ value semantics, identify request-routing and event-loop bugs,
+and add focused validation and documentation. All final code decisions and
+tests were reviewed in the repository.Architecture overview :
 
 we will have 3 main layers:
 

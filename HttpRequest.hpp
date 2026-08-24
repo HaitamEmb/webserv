@@ -33,7 +33,7 @@ class HttpRequest {
 		std::string getMethod() const;
 		std::string getVersion() const;
 		std::string getBody() const;
-		std::string getHeader(const std::string &key);
+		std::string getHeader(const std::string &key) const;
 		std::string getPath() const;
 
 };

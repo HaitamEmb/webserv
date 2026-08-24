@@ -19,6 +19,7 @@ std::string ConfigParser::_trim(const std::string &str)
 
 bool ConfigParser::parse()
 {
+	_servers.clear();
 	std::ifstream file(_file_path.c_str());
 	if (!file.is_open())
 	{
@@ -94,6 +95,13 @@ void ConfigParser::_parseServer(std::ifstream &file)
 			while (ss >> name)
 				server.addServer(clean_token(name));
 		}
+		else if (key == "error_page")
+		{
+			int code;
+			std::string path;
+			ss >> code >> path;
+			server.setErrorPage(code, clean_token(path));
+		}
 		else if (key == "location")
 		{
 			std::string path;
@@ -148,6 +156,36 @@ void ConfigParser::_parseLocation(std::ifstream &file, ConfigLoc &location, cons
 			size_t size;
 			ss >> size;
 			location.setMaxBodySize(size);
+		}else if (key == "upload") {
+			std::string value;
+			ss >> value;
+			location.setUpload(clean_token(value) == "on");
+		}else if (key == "upload_store") {
+			std::string path;
+			ss >> path;
+			location.setUploadPath(clean_token(path));
+		}else if (key == "return") {
+			std::string code;
+			std::string url;
+			ss >> code >> url;
+			location.setReturnUrl(clean_token(url));
+		}else if (key == "cgi_extension") {
+			std::string extension;
+			ss >> extension;
+			location.setCgiExtension(clean_token(extension));
+		}else if (key == "cgi_executor") {
+			std::string executor;
+			ss >> executor;
+			location.setCgiExecutor(clean_token(executor));
+		}else if (key == "cgi") {
+			std::string extension;
+			std::string executor;
+			ss >> extension >> executor;
+			location.addCgiHandler(clean_token(extension), clean_token(executor));
+		}else if (key == "sessions") {
+			std::string value;
+			ss >> value;
+			location.setSessions(clean_token(value) == "on");
 		}
 	}
 }

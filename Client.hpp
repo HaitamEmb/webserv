@@ -4,7 +4,9 @@
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 #include "ConfigServ.hpp"
+#include "CgiHandler.hpp"
 #include <string>
+#include <ctime>
 
 enum ClientState {
 	READING_REQUEST,
@@ -19,6 +21,8 @@ class Client {
 		std::string _read_buff;
 		std::string _write_buff;
 		size_t _bytes_sent;
+		CgiHandler *_cgi;
+		std::time_t _last_activity;
 	public:
 		HttpRequest request;
 		HttpResponse response;
@@ -32,6 +36,10 @@ class Client {
 		void setState(ClientState state);
 		const char *getWriteData() const;
 		ClientState getState() const;
+		CgiHandler *getCgi() const;
+		void setCgi(CgiHandler *cgi);
+		void touch();
+		std::time_t getLastActivity() const;
 		size_t getRemainingBytes()const;
 
 		void appendtoReadBuff(const char *data, size_t len);

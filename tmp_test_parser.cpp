@@ -101,7 +101,7 @@ void testConfigParser() {
 
     // Vérification des routes (locations)
     std::vector<ConfigLoc> locations = server.getLocs();
-    assert(locations.size() == 2);
+    assert(locations.size() == 5);
 
     // Location /
     ConfigLoc loc1 = locations[0];
@@ -115,9 +115,23 @@ void testConfigParser() {
     // Location /uploads
     ConfigLoc loc2 = locations[1];
     assert(loc2.getPath() == "/uploads");
-    assert(loc2.AllowedMethod("GET") == false);
+    assert(loc2.AllowedMethod("GET") == true);
     assert(loc2.AllowedMethod("DELETE") == true);
     assert(loc2.getAutoIndex() == false);
+
+    // Location /cgi
+    ConfigLoc loc3 = locations[2];
+    assert(loc3.getPath() == "/cgi");
+    assert(loc3.getCgiExtension() == ".py");
+    assert(loc3.getCgiExecutor() == "/usr/bin/python3");
+
+    // Location /redirect
+    ConfigLoc loc4 = locations[3];
+    assert(loc4.getReturnUrl() == "/");
+
+    // Location /session
+    ConfigLoc loc5 = locations[4];
+    assert(loc5.getSessions() == true);
 
     std::cout << "PASSED!" << std::endl;
 }

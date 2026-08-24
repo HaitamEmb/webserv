@@ -7,6 +7,20 @@ HttpResponse::HttpResponse() : _status_code(200), _status_message("OK") {
 
 HttpResponse::~HttpResponse(){};
 
+HttpResponse::HttpResponse(const HttpResponse &other) {
+	*this = other;
+}
+
+HttpResponse &HttpResponse::operator=(const HttpResponse &other) {
+	if (this != &other) {
+		_status_code = other._status_code;
+		_status_message = other._status_message;
+		_headers = other._headers;
+		_body = other._body;
+	}
+	return *this;
+}
+
 void HttpResponse::setHeader(const std::string &key, const std::string &value) {
 	_headers[key] = value;
 }
@@ -17,6 +31,12 @@ void HttpResponse::setBody(const std::string &body){
 	ss << _body.size();
 	setHeader("Content-Length", ss.str());
 };
+
+void HttpResponse::setCookie(const std::string &name, const std::string &value) {
+	setHeader("Set-Cookie", name + "=" + value + "; Path=/; HttpOnly");
+}
+
+std::string HttpResponse::getBody() const { return _body; }
 
 void HttpResponse::setStatusCode(int code){
 	_status_code = code;
@@ -45,6 +65,9 @@ std::string HttpResponse::getStatusMsg(int code) const
 		case 403 : return "Forbidden";
 		case 404 : return "Not Found";
 		case 405 : return "Method not Allowed";
+		case 413 : return "Payload Too Large";
+		case 501 : return "Not Implemented";
+		case 502 : return "Bad Gateway";
 		case 500 : return "Internal Server Error";
 		default  : return "Unknown Error";
 	}

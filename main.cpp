@@ -14,7 +14,10 @@ int main(int ac, char  **av)
 	}
 
 	ServerManager manager(parser.getServers());
-	manager.init();
+	if (!manager.init()) {
+		std::cerr << "Failed to initialize listening sockets" << std::endl;
+		return 1;
+	}
 	manager.run();
 
 	return 0;

@@ -2,6 +2,14 @@
 #include <sstream>
 #include <iostream>
 
+static std::string lowerString(const std::string &value)
+{
+	std::string result = value;
+	for (size_t i = 0; i < result.size(); ++i)
+		if (result[i] >= 'A' && result[i] <= 'Z') result[i] = static_cast<char>(result[i] - 'A' + 'a');
+	return result;
+}
+
 HttpRequest::HttpRequest() : _is_parsed(false){};
 HttpRequest::~HttpRequest() {};
 
@@ -20,12 +28,21 @@ HttpRequest &HttpRequest::operator=(HttpRequest const &other)
 		this->_path = other._path;
 		this->_version = other._version;
 		this->_query_string = other._query_string;
+		this->_is_parsed = other._is_parsed;
 	}
 	return *this;
 	
 }
 void HttpRequest::parse(const std::string &buff)
 {
+	_method.clear();
+	_path.clear();
+	_version.clear();
+	_query_string.clear();
+	_headers.clear();
+	_body.clear();
+	_is_parsed = false;
+
 	std::string line;
 	std::size_t pos = 0;
 	std::size_t prev = 0;
@@ -55,14 +72,44 @@ void HttpRequest::parse(const std::string &buff)
 		_is_parsed = false;
 		return;
 	}
-	if (_method == "GET" || _method == "DELETE")
+	if (_method == "GET" || _method == "DELETE" || _method.empty() == false)
 	{
 		_is_parsed = true;
-		return;
+		if (_method != "POST" && _method != "PUT") return;
 	}
-	if (_method == "POST")
+	if (_method == "POST" || _method == "PUT")
 	{
 		std::string content_len = getHeader("Content-Length");
+		if (lowerString(getHeader("Transfer-Encoding")) == "chunked")
+		{
+			std::string decoded;
+			size_t cursor = header_end + 4;
+			while (cursor < buff.size())
+			{
+				size_t line_end = buff.find("\r\n", cursor);
+				if (line_end == std::string::npos) return;
+				std::string size_text = buff.substr(cursor, line_end - cursor);
+				if (size_text.empty()) return;
+				for (size_t digit = 0; digit < size_text.size(); ++digit) {
+					char value = size_text[digit];
+					if (!((value >= '0' && value <= '9') || (value >= 'a' && value <= 'f')
+						|| (value >= 'A' && value <= 'F') || value == ';')) return;
+				}
+				unsigned long chunk_size = std::strtoul(size_text.c_str(), NULL, 16);
+				cursor = line_end + 2;
+				if (chunk_size == 0)
+				{
+					if (buff.size() < cursor + 2) return;
+					_body = decoded;
+					_is_parsed = true;
+					return;
+				}
+				if (buff.size() < cursor + chunk_size + 2) return;
+				decoded.append(buff, cursor, chunk_size);
+				cursor += chunk_size + 2;
+			}
+			return;
+		}
 		if (content_len.empty())
 		{
 			_is_parsed = true;
@@ -83,8 +130,8 @@ std::string HttpRequest::getPath() const {return _path; };
 std::string HttpRequest::getVersion() const {return _version; };
 std::string HttpRequest::getMethod() const {return _method; };
 std::string HttpRequest::getQueryString() const {return _query_string;};
-std::string HttpRequest::getHeader(const std::string &key) {
-	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+std::string HttpRequest::getHeader(const std::string &key) const {
+	std::map<std::string, std::string>::const_iterator it = _headers.find(lowerString(key));
 	if (it != _headers.end()){
 		return it->second;
 	}
@@ -119,5 +166,5 @@ void HttpRequest::parseHeader(const std::string &line)
 
 	if (!value.empty() && value[0] == ' ')
 		value.erase(0, 1);
-	_headers[key] = value;
+	_headers[lowerString(key)] = value;
 }

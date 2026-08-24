@@ -15,19 +15,28 @@ class ServerManager {
 		std::vector<struct pollfd> _poll_fds;
 		std::map<int, Client*> _clients;
 		std::map<int, ConfigServ> _listen_config_map;
+		std::map<int, std::vector<ConfigServ> > _listen_configs;
+		std::map<int, int> _client_listen_map;
+		std::map<int, Client*> _cgi_input_clients;
+		std::map<int, Client*> _cgi_output_clients;
 
-		void _setupListenSockets();
+		bool _setupListenSockets();
 		void _setNonBlocking(int fd);
 		void _acceptNewConnection(int listen_fd);
 		void _readClientData(int client_fd, size_t poll_index);
-		void _writeClientData(int client_fd, size_t poll_index);
-		void _closeConnection(int client_fd, size_t poll_index);
+		void _writeClientData(int client_fd);
+		void _closeConnection(int client_fd);
 		bool _isListenning(int fd) const;
+		void _removePollFd(size_t index);
+		void _startCgi(Client *client, size_t client_index);
+		void _handleCgiInput(int fd, size_t poll_index);
+		void _handleCgiOutput(int fd, size_t poll_index);
+		void _selectClientConfig(Client *client);
 	public:
 		ServerManager(const std::vector<ConfigServ> &configs);
 		~ServerManager();
 		
-		void init();
+		bool init();
 		void run();
 };
 

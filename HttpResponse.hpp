@@ -23,6 +23,8 @@ class HttpResponse {
 		void setStatusCode(int status_code);
 		void setHeader(const std::string &key, const std::string &value);
 		void setBody(const std::string &body);
+		void setCookie(const std::string &name, const std::string &value);
+		std::string getBody() const;
 		std::string serializer();
 };
 
