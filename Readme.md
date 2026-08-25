@@ -103,3 +103,38 @@ Normally the browser(client) contacts the HTTP server and demand for the Univers
 Now with the CGI protocol, instead of just displaying a file, the client can ask for execution of a program or script, and the produced result of that execution is sent back to the client to display.
 
 The CGI layer will receive the request and then see if it's a request for script execution or just looking for a file to display like index.html.
+
+# Test Bonus
+	-Start server
+	./webserv default.conf
+
+	-First session request (store cookie)
+	curl -i -c webserv.cookies http://127.0.0.1:8080/session
+
+	Expect:
+
+	Header includes Set-Cookie: WEBSESSID=...
+	Body ends with Session requests: 1
+
+	-Second session request with same cookie
+	curl -i -b webserv.cookies http://127.0.0.1:8080/session
+
+	Expect:
+
+	No new Set-Cookie header
+	Body shows Session requests: 2 (or higher if repeated)
+
+	-Invalid cookie test
+	curl -i -H "Cookie: WEBSESSID=does-not-exist" http://127.0.0.1:8080/session
+
+	Expect:
+
+	New Set-Cookie header
+	Body shows Session requests: 1
+	
+	-Control route without sessions
+	curl -i http://127.0.0.1:8080/
+
+	Expect:
+
+	No Set-Cookie header
