@@ -2,10 +2,144 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>webserv</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>webserv request lab</title>
+    <style>
+        :root {
+            --ink: #18232b;
+            --muted: #617078;
+            --paper: #f7f3eb;
+            --panel: #fffdf8;
+            --line: #d8d1c5;
+            --teal: #0b7774;
+            --coral: #d85d48;
+            --shadow: 0 18px 45px rgba(24, 35, 43, .12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: linear-gradient(135deg, #f7f3eb 0%, #e7efeb 100%);
+            font: 16px/1.5 Georgia, "Times New Roman", serif;
+        }
+        main { width: min(1100px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 64px; }
+        header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 30px; }
+        h1, h2, p { margin-top: 0; }
+        h1 { max-width: 620px; margin-bottom: 10px; font-size: clamp(2.3rem, 7vw, 5rem); line-height: .95; letter-spacing: 0; }
+        header p { color: var(--muted); max-width: 330px; margin-bottom: 4px; }
+        .workspace { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 20px; }
+        .panel { background: rgba(255, 253, 248, .88); border: 1px solid var(--line); padding: 24px; box-shadow: var(--shadow); }
+        .panel h2 { font-size: 1.25rem; margin-bottom: 20px; }
+        .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+        button, input, select, textarea { font: inherit; }
+        button { border: 0; cursor: pointer; }
+        .preset { color: var(--teal); background: #dcece7; padding: 8px 11px; border-radius: 3px; }
+        .preset:hover { background: #c9e0d9; }
+        form { display: grid; gap: 14px; }
+        .row { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: center; }
+        label { color: var(--muted); font-size: .9rem; }
+        input, select, textarea { width: 100%; border: 1px solid var(--line); background: white; color: var(--ink); padding: 10px 11px; border-radius: 2px; }
+        textarea { min-height: 120px; resize: vertical; }
+        input:focus, select:focus, textarea:focus { outline: 2px solid rgba(11, 119, 116, .25); border-color: var(--teal); }
+        .send { color: white; background: var(--coral); padding: 12px 18px; border-radius: 3px; font-weight: bold; }
+        .send:hover { background: #bd4937; }
+        .hint { color: var(--muted); font-size: .88rem; margin: -4px 0 0; }
+        pre { min-height: 220px; margin: 0; padding: 16px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: #18232b; color: #e6f1ec; font: 13px/1.55 "Courier New", monospace; }
+        .response-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; color: var(--muted); font-size: .9rem; }
+        #status { font-weight: bold; color: var(--teal); }
+        @media (max-width: 760px) {
+            main { padding-top: 28px; }
+            header { display: block; }
+            header p { max-width: none; }
+            .workspace { grid-template-columns: 1fr; }
+            .row { grid-template-columns: 1fr; gap: 4px; }
+        }
+    </style>
 </head>
 <body>
-    <h1>webserv is running</h1>
-    <p>This page is served by the C++98 HTTP server.</p>
+    <main>
+        <header>
+            <div>
+                <h1>webserv</h1>
+            </div>
+            
+        </header>
+        <div class="workspace">
+            <section class="panel">
+                <h2>Quick checks</h2>
+                <div class="presets">
+                    <button class="preset" data-method="GET" data-path="/">GET /</button>
+                    <button class="preset" data-method="GET" data-path="/missing-pa<p>Changes made here go straight through the HTTP server, just like a real client.</p>ge">404 missing page</button>
+                    <button class="preset" data-method="GET" data-path="/uploads/">list uploads</button>
+                    <button class="preset" data-method="GET" data-path="/redirect">301 redirect</button>
+                    <button class="preset" data-method="GET" data-path="/cgi/hello.py?name=browser">run Python CGI</button>
+                    <button class="preset" data-method="GET" data-path="/cgi/hello.sh">run shell CGI</button>
+                    <button class="preset" data-method="DELETE" data-path="/uploads/browser-test.txt">delete test file</button>
+                </div>
+                <h2>Custom request</h2>
+                <form id="request-form">
+                    <div class="row"><label for="method">Method</label><select id="method"><option>GET</option><option>POST</option><option>DELETE</option><option>PUT</option></select></div>
+                    <div class="row"><label for="path">Path</label><input id="path" value="/" required></div>
+                    <div class="row"><label for="body">Request body</label><textarea id="body" placeholder="Used for POST requests without a file"></textarea></div>
+                    <div class="row"><label for="file">Upload file</label><input id="file" type="file"></div>
+                    <button class="send" type="submit">Send request</button>
+                </form>
+            </section>
+            <section class="panel">
+                <h2>Response</h2>
+                <div class="response-meta"><span id="status">No request yet</span><span id="time"></span></div>
+                <pre id="response">Choose a quick check or send a custom request.</pre>
+            </section>
+        </div>
+    </main>
+    <script>
+        var form = document.getElementById('request-form');
+        var method = document.getElementById('method');
+        var path = document.getElementById('path');
+        var body = document.getElementById('body');
+        var file = document.getElementById('file');
+        var responseStatus = document.getElementById('status');
+        var time = document.getElementById('time');
+        var response = document.getElementById('response');
+
+        function setRequest(nextMethod, nextPath) {
+            method.value = nextMethod;
+            path.value = nextPath;
+            body.value = '';
+            file.value = '';
+        }
+
+        function showResponse(result, elapsed) {
+            var label = result.type === 'opaqueredirect' ? '301 Redirect (browser preserved)' : result.status + ' ' + result.statusText;
+            responseStatus.textContent = label;
+            responseStatus.style.color = result.type === 'opaqueredirect' || result.ok ? 'var(--teal)' : 'var(--coral)';
+            time.textContent = elapsed + ' ms';
+            response.textContent = result.body || '(empty response body)';
+        }
+
+        async function sendRequest() {
+            var started = Date.now();
+            var requestBody = body.value;
+            var headers = {};
+            if (file.files.length > 0) {
+                requestBody = await file.files[0].arrayBuffer();
+                headers['X-Filename'] = file.files[0].name;
+            }
+            try {
+                var result = await fetch(path.value, { method: method.value, headers: headers, redirect: 'manual', body: method.value === 'GET' || method.value === 'DELETE' ? undefined : requestBody });
+                showResponse({ status: result.status, statusText: result.statusText, type: result.type, ok: result.ok, body: await result.text() }, Date.now() - started);
+            } catch (error) {
+                responseStatus.textContent = 'Request failed';
+                responseStatus.style.color = 'var(--coral)';
+                time.textContent = '';
+                response.textContent = error.message + '\n\nIs the webserv binary running on this page\'s address?';
+            }
+        }
+
+        document.querySelectorAll('.preset').forEach(function (button) {
+            button.addEventListener('click', function () { setRequest(button.dataset.method, button.dataset.path); sendRequest(); });
+        });
+        form.addEventListener('submit', function (event) { event.preventDefault(); sendRequest(); });
+    </script>
 </body>
 </html>

@@ -29,6 +29,7 @@ class ServerManager {
 		bool _isListenning(int fd) const;
 		void _removePollFd(size_t index);
 		void _startCgi(Client *client, size_t client_index);
+		void _abortCgi(Client *client);
 		void _handleCgiInput(int fd, size_t poll_index);
 		void _handleCgiOutput(int fd, size_t poll_index);
 		void _selectClientConfig(Client *client);

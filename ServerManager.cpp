@@ -10,6 +10,8 @@
 #include <cerrno>
 #include <ctime>
 
+static const std::time_t CGI_TIMEOUT_SECONDS = 5;
+
 ServerManager::ServerManager(const std::vector<ConfigServ> &configs) : _configs(configs) {};
 
 ServerManager::~ServerManager() {
@@ -122,6 +124,10 @@ void ServerManager::run() {
 		std::time_t now = std::time(NULL);
 		for (std::map<int, Client*>::iterator timeout_it = _clients.begin(); timeout_it != _clients.end(); ) {
 			std::map<int, Client*>::iterator current = timeout_it++;
+			if (current->second->getCgi() != NULL
+				&& now - current->second->getLastActivity() >= CGI_TIMEOUT_SECONDS) {
+				_abortCgi(current->second);
+			}
 			if (current->second->getCgi() != NULL) current->second->getCgi()->reap();
 			if (current->second->getCgi() != NULL && current->second->getCgi()->isComplete()) {
 				current->second->response = current->second->getCgi()->getResponse();
@@ -139,25 +145,30 @@ void ServerManager::run() {
 
 		for (size_t i = 0; i < _poll_fds.size(); ++i)
 		{
-			if (_poll_fds[i].revents == 0) continue;
+			short revents = _poll_fds[i].revents;
+			if (revents == 0) continue;
 			int current_fd = _poll_fds[i].fd;
 			if (_cgi_input_clients.find(current_fd) != _cgi_input_clients.end()) {
-				_handleCgiInput(current_fd, i);
+				if (revents & POLLOUT) {
+        			_handleCgiInput(current_fd, i);
+    			}
 				continue;
 			}
 			if (_cgi_output_clients.find(current_fd) != _cgi_output_clients.end()) {
-				_handleCgiOutput(current_fd, i);
+				if (revents & (POLLIN | POLLHUP | POLLERR)) {
+					_handleCgiOutput(current_fd, i);
+				}
 				continue;
 			}
 
 			if(_isListenning(current_fd)){
-				if(_poll_fds[i].revents & POLLIN) {
+				if(revents & POLLIN) {
 					_acceptNewConnection(current_fd);
 				}
 			}
 			else
 			{
-				if (_poll_fds[i].revents & POLLIN)
+				if (revents & POLLIN)
 				{
 					_readClientData(current_fd, i);
 					if (_clients.find(current_fd) == _clients.end())
@@ -166,15 +177,46 @@ void ServerManager::run() {
 						continue;
 					}
 				}
-				if (_poll_fds[i].revents & POLLOUT)
+				if (revents & POLLOUT)
+				{
 					_writeClientData(current_fd);
-				if (_poll_fds[i].revents & (POLLHUP | POLLERR | POLLNVAL))
+					if (_clients.find(current_fd) == _clients.end())
+					{
+						if (i > 0) --i;
+						continue;
+					}
+				}
+				if (revents & (POLLHUP | POLLERR | POLLNVAL))
 					_closeConnection(current_fd);
 			}
 		}
 	}
 }
 //implement other functions here
+
+void ServerManager::_abortCgi(Client *client) {
+	for (size_t i = _poll_fds.size(); i > 0; --i) {
+		size_t index = i - 1;
+		int fd = _poll_fds[index].fd;
+		std::map<int, Client*>::iterator input = _cgi_input_clients.find(fd);
+		std::map<int, Client*>::iterator output = _cgi_output_clients.find(fd);
+		if ((input != _cgi_input_clients.end() && input->second == client)
+			|| (output != _cgi_output_clients.end() && output->second == client)) {
+			_cgi_input_clients.erase(fd);
+			_cgi_output_clients.erase(fd);
+			_removePollFd(index);
+		}
+	}
+	delete client->getCgi();
+	client->setCgi(NULL);
+	client->response.setStatusCode(504);
+	client->response.setHeader("Content-Type", "text/html");
+	client->response.setBody("<h1>504 Gateway Timeout (CGI)</h1>");
+	client->setWriteBuff(client->response.serializer());
+	client->setState(WRITING_RESPONSE);
+	for (size_t i = 0; i < _poll_fds.size(); ++i)
+		if (_poll_fds[i].fd == client->getFd()) _poll_fds[i].events = POLLOUT;
+}
 
 void ServerManager::_acceptNewConnection(int listen_fd)
 {
@@ -335,6 +377,7 @@ void ServerManager::_writeClientData(int client_fd)
 
 void ServerManager::_closeConnection(int client_fd)
 {
+	if (_clients.find(client_fd) == _clients.end()) return;
 	std::cout << "[Server Manager] Closing socket: " << client_fd << std::endl;
 	Client *client = _clients[client_fd];
 	for (size_t i = _poll_fds.size(); i > 0; --i) {
