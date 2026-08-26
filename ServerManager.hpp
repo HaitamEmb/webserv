@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <poll.h>
+#include <signal.h>
 
 class ServerManager {
 	private:
@@ -19,6 +20,7 @@ class ServerManager {
 		std::map<int, int> _client_listen_map;
 		std::map<int, Client*> _cgi_input_clients;
 		std::map<int, Client*> _cgi_output_clients;
+		static volatile sig_atomic_t _stop_requested;
 
 		bool _setupListenSockets();
 		void _setNonBlocking(int fd);
@@ -33,6 +35,7 @@ class ServerManager {
 		void _handleCgiInput(int fd, size_t poll_index);
 		void _handleCgiOutput(int fd, size_t poll_index);
 		void _selectClientConfig(Client *client);
+		static void _handleSignal(int signal_number);
 	public:
 		ServerManager(const std::vector<ConfigServ> &configs);
 		~ServerManager();

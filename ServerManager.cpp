@@ -12,6 +12,13 @@
 
 static const std::time_t CGI_TIMEOUT_SECONDS = 5;
 
+volatile sig_atomic_t ServerManager::_stop_requested = 0;
+
+void ServerManager::_handleSignal(int signal_number) {
+	(void)signal_number;
+	_stop_requested = 1;
+}
+
 ServerManager::ServerManager(const std::vector<ConfigServ> &configs) : _configs(configs) {};
 
 ServerManager::~ServerManager() {
@@ -113,11 +120,13 @@ bool ServerManager::init() {
 }
 
 void ServerManager::run() {
+	signal(SIGINT, ServerManager::_handleSignal);
 	std::cout << "[ServerManager] Starting Main loop..." << std::endl;
-	while(true) {
+	while(!_stop_requested) {
 		int poll_count = poll(_poll_fds.data(), _poll_fds.size(), 1000);
 		if (poll_count < 0)
 		{
+			if (errno == EINTR && _stop_requested) break;
 			std::cerr << "Poll error: " << std::strerror(errno) << std::endl;
 			break;
 		}
