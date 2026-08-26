@@ -39,21 +39,27 @@ HttpResponse RequestRouter::_generateErrorResponse(int code, const std::string& 
 	HttpResponse res;
 	res.setStatusCode(code);
 	res.setHeader("Content-Type", "text/html");
+	
+	std::string body_content;
 	if (config != NULL && !config->getErrorPage(code).empty()) {
 		std::ifstream error_file(config->getErrorPage(code).c_str(), std::ios::binary);
 		if (error_file.is_open()) {
 			std::stringstream error_body;
 			error_body << error_file.rdbuf();
-			res.setBody(error_body.str());
-			return res;
+			body_content = error_body.str();
 		}
 	}
 	
-	std::stringstream ss;
-	ss << "<html><head><title>" << code << " " << message << "</title></head>"
-	<< "<body><center><h1>" << code << " " << message << "</h1></center><hr><center>Webserv/1.0</center></body></html>";
+	if (body_content.empty()) {
+		std::stringstream ss;
+		ss << "<html><head><title>" << code << " " << message << "</title></head>"
+		<< "<body><center><h1>" << code << " " << message << "</h1></center><hr><center>Webserv/1.0</center></body></html>";
+		body_content = ss.str();
+	}
 	
-	res.setBody(ss.str());
+	// This function automatically adds the single, correct Content-Length header
+	res.setBody(body_content);
+	
 	return res;
 }
 
@@ -85,8 +91,8 @@ HttpResponse RequestRouter::routeRequest(const HttpRequest& req, const ConfigSer
 	if (!loc->AllowedMethod(req.getMethod()))
 		return _generateErrorResponse(405, "Method Not Allowed", &config);
 
-	if (req.getMethod() == "POST" && req.getBody().size() > loc->getMaxBodySize())
-		return _generateErrorResponse(413, "Payload Too Large", &config);
+	if (req.getMethod() == "POST" && loc->getMaxBodySize() > 0 && req.getBody().size() > loc->getMaxBodySize())
+        return _generateErrorResponse(413, "Payload Too Large", &config);
 
 	std::string relative_path = req.getPath().substr(loc->getPath().length());
 	if (!relative_path.empty() && relative_path[0] == '/') 
@@ -155,11 +161,15 @@ CgiHandler *RequestRouter::createCgi(const HttpRequest &req, const ConfigServ &c
 }
 
 bool RequestRouter::bodyTooLarge(const HttpRequest &req, const ConfigServ &config) {
-	const ConfigLoc *loc = _matchLocation(req.getPath(), config);
-	if (loc == NULL) return false;
-	std::string length = req.getHeader("Content-Length");
-	if (!length.empty() && std::strtoul(length.c_str(), NULL, 10) > loc->getMaxBodySize()) return true;
-	return req.getBody().size() > loc->getMaxBodySize();
+    const ConfigLoc *loc = _matchLocation(req.getPath(), config);
+    if (loc == NULL) return false;
+    
+    // NEW: If max body size is 0, assume infinite/no limit.
+    if (loc->getMaxBodySize() == 0) return false;
+
+    std::string length = req.getHeader("Content-Length");
+    if (!length.empty() && std::strtoul(length.c_str(), NULL, 10) > loc->getMaxBodySize()) return true;
+    return req.getBody().size() > loc->getMaxBodySize();
 }
 
 HttpResponse RequestRouter::_handlePost(const HttpRequest &req, const ConfigLoc &loc) {
@@ -249,7 +259,7 @@ HttpResponse RequestRouter::_handleGet(const HttpRequest& req, const ConfigLoc &
 			return res;
 		}
 		else
-			return _generateErrorResponse(403, "Forbidden", &config);
+			return _generateErrorResponse(404, "Not Found", &config);
 	}
 
 	std::ifstream file(full_path.c_str(), std::ios::binary);

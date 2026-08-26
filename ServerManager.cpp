@@ -121,6 +121,7 @@ bool ServerManager::init() {
 
 void ServerManager::run() {
 	signal(SIGINT, ServerManager::_handleSignal);
+	signal(SIGPIPE, SIG_IGN);
 	std::cout << "[ServerManager] Starting Main loop..." << std::endl;
 	while(!_stop_requested) {
 		int poll_count = poll(_poll_fds.data(), _poll_fds.size(), 1000);
@@ -251,13 +252,14 @@ void ServerManager::_acceptNewConnection(int listen_fd)
 }
 
 void ServerManager::_readClientData(int client_fd, size_t poll_index) {
-	char buffer[4096];
+	char buffer[65536];
 	ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);
-	if(bytes_read <= 0)
-	{
-		_closeConnection(client_fd);
-		return;
-	}
+	if(bytes_read == 0) {
+        _closeConnection(client_fd);
+        return;
+    } else if (bytes_read < 0) {
+        return; // CRITICAL: Ignore EAGAIN.
+    }
 
 	Client *client = _clients[client_fd];
 	client->appendtoReadBuff(buffer, bytes_read);
@@ -337,16 +339,17 @@ void ServerManager::_startCgi(Client *client, size_t client_index) {
 }
 
 void ServerManager::_handleCgiInput(int fd, size_t poll_index) {
-	Client *client = _cgi_input_clients[fd];
-	client->getCgi()->handleInput();
-	if (client->getCgi()->getInputFd() < 0) {
-		_cgi_input_clients.erase(fd);
-		_removePollFd(poll_index);
-	}
+    Client *client = _cgi_input_clients[fd];
+    client->touch(); // NEW: Reset the timeout timer!
+    client->getCgi()->handleInput();
+    if (client->getCgi()->getInputFd() < 0) {
+        _cgi_input_clients.erase(fd);
+        _removePollFd(poll_index);
+    }
 }
-
 void ServerManager::_handleCgiOutput(int fd, size_t poll_index) {
 	Client *client = _cgi_output_clients[fd];
+	client->touch();
 	client->getCgi()->handleOutput();
 	if (client->getCgi()->isComplete()) {
 		int input_fd = client->getCgi()->getInputFd();
@@ -368,20 +371,26 @@ void ServerManager::_handleCgiOutput(int fd, size_t poll_index) {
 
 void ServerManager::_writeClientData(int client_fd)
 {
-	Client *client = _clients[client_fd];
+    Client *client = _clients[client_fd];
+    client->touch(); // NEW: Reset the timeout timer while actively sending!
 
-	ssize_t bytes_sent = send(client_fd, client->getWriteData(), client->getRemainingBytes(), 0);
-	if (bytes_sent <= 0)
-	{
-			_closeConnection(client_fd);
-		return;
-	}
-	client->advanceWrite(bytes_sent);
-	if(client->getRemainingBytes() == 0)
-	{
-		std::cout << "[ServerManager] Response sent to socket: " << client_fd << std::endl;
-			_closeConnection(client_fd);
-	}
+    size_t to_send = client->getRemainingBytes();
+    if (to_send > 65536) to_send = 65536; // Send in chunks to avoid blocking
+
+    ssize_t bytes_sent = send(client_fd, client->getWriteData(), to_send, 0);
+    if (bytes_sent == 0) {
+        _closeConnection(client_fd);
+        return;
+    } else if (bytes_sent < 0) {
+        return; // CRITICAL: Ignore EAGAIN. No errno needed.
+    }
+
+    client->advanceWrite(bytes_sent);
+    if(client->getRemainingBytes() == 0)
+    {
+        std::cout << "[ServerManager] Response sent to socket: " << client_fd << std::endl;
+        _closeConnection(client_fd);
+    }
 }
 
 void ServerManager::_closeConnection(int client_fd)

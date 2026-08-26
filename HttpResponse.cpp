@@ -3,6 +3,7 @@
 
 HttpResponse::HttpResponse() : _status_code(200), _status_message("OK") {
 	setHeader("Server", "Webserv/1.0");
+	setHeader("Connection", "close");
 }
 
 HttpResponse::~HttpResponse(){};

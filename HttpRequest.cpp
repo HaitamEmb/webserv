@@ -35,53 +35,50 @@ HttpRequest &HttpRequest::operator=(HttpRequest const &other)
 }
 void HttpRequest::parse(const std::string &buff)
 {
-	_method.clear();
-	_path.clear();
-	_version.clear();
-	_query_string.clear();
-	_headers.clear();
-	_body.clear();
-	_is_parsed = false;
-
-	std::string line;
-	std::size_t pos = 0;
-	std::size_t prev = 0;
-	bool is_first_line = true;
-
-	while((pos = buff.find("\r\n", prev)) != std::string::npos)
-	{
-		line = buff.substr(prev, pos - prev);
-		prev = pos + 2;
-		if (line.empty())
-			break;
-		if (is_first_line)
-		{
-			parseRequest(line);
-			is_first_line = false;
-		}
-		else
-			parseHeader(line);
-	}
-
-	if (prev < buff.size())
-		_body = buff.substr(prev);
+	if (_is_parsed) return;
 
 	std::size_t header_end = buff.find("\r\n\r\n");
 	if (header_end == std::string::npos)
-	{
-		_is_parsed = false;
+		return; // Headers not fully received yet
+
+	// 1. Only parse headers ONCE
+	if (_method.empty()) {
+		std::string line;
+		std::size_t pos = 0;
+		std::size_t prev = 0;
+		bool is_first_line = true;
+
+		while((pos = buff.find("\r\n", prev)) != std::string::npos)
+		{
+			if (pos == prev) break; 
+			line = buff.substr(prev, pos - prev);
+			prev = pos + 2;
+			if (is_first_line) {
+				parseRequest(line);
+				is_first_line = false;
+			} else {
+				parseHeader(line);
+			}
+		}
+	}
+
+	// 2. Handle Body Requirements
+	if (_method == "GET" || _method == "DELETE" || (_method != "POST" && _method != "PUT")) {
+		_is_parsed = true;
 		return;
 	}
-	if (_method == "GET" || _method == "DELETE" || _method.empty() == false)
-	{
-		_is_parsed = true;
-		if (_method != "POST" && _method != "PUT") return;
-	}
-	if (_method == "POST" || _method == "PUT")
-	{
+
+	if (_method == "POST" || _method == "PUT") {
 		std::string content_len = getHeader("Content-Length");
-		if (lowerString(getHeader("Transfer-Encoding")) == "chunked")
-		{
+		
+		if (lowerString(getHeader("Transfer-Encoding")) == "chunked") {
+			// CRITICAL FIX: Do NOT parse chunks on every 4KB recv chunk.
+			// Wait until the final "0\r\n\r\n" termination marker has arrived!
+			if (buff.find("0\r\n\r\n", header_end) == std::string::npos) {
+				return; // Keep reading from the socket silently without freezing CPU
+			}
+
+			// Now parse the chunks EXACTLY ONCE
 			std::string decoded;
 			size_t cursor = header_end + 4;
 			while (cursor < buff.size())
@@ -99,7 +96,6 @@ void HttpRequest::parse(const std::string &buff)
 				cursor = line_end + 2;
 				if (chunk_size == 0)
 				{
-					if (buff.size() < cursor + 2) return;
 					_body = decoded;
 					_is_parsed = true;
 					return;
@@ -109,20 +105,22 @@ void HttpRequest::parse(const std::string &buff)
 				cursor += chunk_size + 2;
 			}
 			return;
+		} else {
+			if (content_len.empty()) {
+				_is_parsed = true;
+				return;
+			}
+			
+			std::size_t bodysize = std::strtoul(content_len.c_str(), NULL, 10);
+			std::size_t body_start = header_end + 4;
+			
+			if (buff.size() >= body_start + bodysize) {
+				_body = buff.substr(body_start, bodysize);
+				_is_parsed = true;
+			}
 		}
-		if (content_len.empty())
-		{
-			_is_parsed = true;
-			return ;
-		}
-		std::size_t bodysize = atoi(content_len.c_str());
-		if (_body.size() >= bodysize)
-			_is_parsed = true;
-		else
-			_is_parsed = false;
 	}
 }
-
 bool HttpRequest::parse_complete() {return _is_parsed;};
 
 std::string HttpRequest::getBody() const {return _body; };
