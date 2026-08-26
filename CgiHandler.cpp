@@ -40,10 +40,15 @@ bool CgiHandler::start() {
         dup2(output_pipe[1], STDOUT_FILENO);
         close(input_pipe[0]); close(input_pipe[1]);
         close(output_pipe[0]); close(output_pipe[1]);
+        size_t slash = _script_path.rfind('/');
+        std::string script_directory = slash == std::string::npos ? "." : _script_path.substr(0, slash);
+        std::string script_name = slash == std::string::npos ? _script_path : _script_path.substr(slash + 1);
+        if (chdir(script_directory.c_str()) != 0)
+            std::exit(1);
         char **envp = _getEnvAsCArray();
         char *args[3];
         args[0] = const_cast<char *>(_cgi_executor.c_str());
-        args[1] = const_cast<char *>(_script_path.c_str());
+        args[1] = const_cast<char *>(script_name.c_str());
         args[2] = NULL;
         execve(args[0], args, envp);
         _freeCArray(envp);
